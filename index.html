@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perancangan Tunang Wana🧕🏼</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices: 
+        Gambaran Keseluruhan:
+            - Statistik Utama (Jumlah Anggaran, Jumlah Sebenar, Bajet Baki, Kemajuan): HTML + JS. Tujuan: Memberi maklumat ringkas status kewangan dan kemajuan. Interaksi: Dinamik dikemas kini apabila data berubah.
+            - Carta Pai (Pecahan Anggaran Kos Beli-belah): Chart.js (Canvas). Tujuan: Membandingkan agihan anggaran kos mengikut kategori beli-belah. Interaksi: Tooltip pada hover.
+            - Carta Bar (Varians Kos mengikut Kategori): Chart.js (Canvas). Tujuan: Menunjukkan perbezaan antara anggaran dan kos sebenar untuk setiap kategori, menyoroti lebihan atau penjimatan. Interaksi: Tooltip pada hover.
+            - Carta Bar (Kemajuan Tugasan mengikut Kategori): Chart.js (Canvas). Tujuan: Memaparkan peratusan item yang selesai bagi setiap kategori merentasi kedua-dua senarai, memberikan gambaran kemajuan yang lebih terperinci. Interaksi: Tooltip pada hover.
+            - Carta Bar (Pecahan Kos mengikut Status): Chart.js (Canvas). Tujuan: Menunjukkan jumlah kos sebenar yang telah dibelanjakan mengikut status item (Belum Beli, Dalam Proses, Selesai), membantu menguruskan aliran tunai. Interaksi: Tooltip pada hover.
+        Senarai Beli-belah & Acara:
+            - Jadual Interaktif: HTML + JS. Tujuan: Menyusun dan memaparkan item dengan terperinci. Interaksi: Penapisan mengikut kategori/status, pengisihan lajur, kemas kini input untuk kuantiti/kos, perubahan status melalui butang 'Edit' dan 'Padam'.
+            - Penapis (Dropdown) & Butang Reset: HTML + JS. Tujuan: Memudahkan pengguna mencari item tertentu dan mengosongkan penapis dengan cepat. Interaksi: Memilih pilihan akan menyaring jadual, butang akan mengosongkan penapis.
+        Modal Pengesahan Kustom: HTML + JS. Tujuan: Memberikan maklum balas yang jelas dan meminta pengesahan sebelum tindakan kritikal (seperti memadam item). Interaksi: Butang "Ya" atau "Tidak".
+        Semua visualisasi dan persembahan kandungan direka untuk menyokong struktur aplikasi papan pemuka dan memudahkan pemahaman serta pengurusan data perancangan. Tiada SVG atau Mermaid JS digunakan.
+    -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #FDFBF6; color: #333333; }
+        .tab-button { padding: 0.75rem 1.5rem; margin-right: 0.5rem; border-radius: 0.5rem 0.5rem 0 0; font-weight: 500; cursor: pointer; transition: background-color 0.3s, color 0.3s, transform 0.1s ease-in-out; background-color: #E0E0E0; color: #555555; }
+        .tab-button:hover { transform: translateY(-2px); }
+        .tab-button.active { background-color: #76ABAE; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .tab-content { display: none; padding: 1.5rem; background-color: #FFFFFF; border-radius: 0 0.5rem 0.5rem 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .tab-content.active { display: block; }
+        .table th, .table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #E0E0E0; }
+        .table th { background-color: #F5F5F5; font-weight: 600; cursor: pointer; }
+        .table th:hover { background-color: #ECECEC; }
+        .table tbody tr:hover { background-color: #F9FAFB; }
+        .table input[type="number"], .table input[type="text"], .table select, .table textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.375rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .table input:focus, .table select:focus, .table textarea:focus {
+            outline: none;
+            border-color: #76ABAE;
+            box-shadow: 0 0 0 2px rgba(118, 171, 174, 0.2);
+        }
+        .table button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s ease-in-out;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .table button:hover { transform: translateY(-1px); }
+        .status-belum { background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; } /* Light Red */
+        .status-proses { background-color: #FFFBEB; color: #A16207; border: 1px solid #FCD34D; } /* Light Yellow */
+        .status-selesai { background-color: #D1FAE5; color: #065F46; border: 1px solid #6EE7B7; } /* Light Green */
+        .summary-card { background-color: #F9FAFB; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .summary-card h3 { font-size: 1.125rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
+        .summary-card p { font-size: 1.5rem; font-weight: 700; color: #76ABAE; }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+            background-color: #FFFFFF;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 550px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal.active .modal-content {
+            transform: translateY(0);
+        }
+        .filter-container select, .filter-container button {
+            padding: 0.6rem 1rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.375rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .filter-container select:focus, .filter-container button:focus {
+            outline: none;
+            border-color: #76ABAE;
+            box-shadow: 0 0 0 2px rgba(118, 171, 174, 0.2);
+        }
+        .no-data-message {
+            text-align: center;
+            padding: 2rem;
+            color: #777;
+            font-style: italic;
+        }
+        .confirm-modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .confirm-modal-content p {
+            margin-bottom: 1.5rem;
+            font-size: 1.125rem;
+            color: #333;
+        }
+        .confirm-modal-content button {
+            margin: 0 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .tab-content {
+                padding: 0.75rem;
+            }
+            .summary-card {
+                padding: 1rem;
+            }
+            .chart-container {
+                padding: 0.5rem;
+                height: 220px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .tabs button {
+                padding: 0.5rem 1rem;
+                font-size: 0.95rem;
+            }
+            .table th, .table td {
+                padding: 0.5rem;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="container mx-auto max-w-6xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-[#3A5A40] animate-pulse">
+        Welcome to Perancangan Majlis Tunang Wana🧕🏼 & Jahid🙎🏻‍♂️
+    </h1>
+    <p class="text-base md:text-lg text-gray-600 mt-2">
+        Rancang dan urus persiapan majlis tunang Wana & Jahid dengan mudah, teratur, dan sistematik.
+    </p>
+        </header>
+
+        <div class="tabs mb-6">
+            <button class="tab-button active" onclick="openTab(event, 'utama')">Utama</button>
+            <button class="tab-button" onclick="openTab(event, 'belibelah')">Senarai Beli-belah</button>
+            <button class="tab-button" onclick="openTab(event, 'acara')">Senarai Acara</button>
+        </div>
+
+        <div id="utama" class="tab-content active">
+            <h2 class="text-2xl font-semibold mb-4 text-[#3A5A40]">Gambaran Keseluruhan</h2>
+            <p class="mb-6 text-gray-700">Selamat datang ke menu perancangan tunang Wana! Di sini anda boleh melihat ringkasan keseluruhan bajet dan persiapan. Gunakan tab di atas untuk melihat butiran lanjut mengenai senarai beli-belah dan acara.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="summary-card">
+                    <h3>Jumlah Anggaran Kos</h3>
+                    <p id="totalAnggaran">RM 0.00</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Jumlah Kos Sebenar</h3>
+                    <p id="totalSebenar">RM 0.00</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Bajet Baki</h3>
+                    <p id="remainingBudget">RM 0.00</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Status Keseluruhan</h3>
+                    <p id="overallProgress">0%</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-center text-[#3A5A40]">Pecahan Anggaran Kos Beli-belah</h3>
+                    <div class="chart-container">
+                        <canvas id="anggaranBelibelahChart"></canvas>
+                        <p id="noBelibelahData" class="no-data-message hidden">Tiada data beli-belah untuk dipaparkan.</p>
+                    </div>
+                     <p class="text-sm text-gray-600 mt-2 text-center">Carta ini menunjukkan agihan anggaran kos untuk setiap kategori dalam senarai beli-belah anda.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-center text-[#3A5A40]">Varians Kos mengikut Kategori</h3>
+                    <div class="chart-container">
+                        <canvas id="costVarianceChart"></canvas>
+                        <p id="noVarianceData" class="no-data-message hidden">Tiada data varians kos untuk dipaparkan.</p>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2 text-center">Graf ini membandingkan anggaran kos dengan kos sebenar, menyoroti kategori yang melebihi atau di bawah bajet.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-center text-[#3A5A40]">Kemajuan Tugasan mengikut Kategori</h3>
+                    <div class="chart-container h-[400px] max-h-[500px]">
+                        <canvas id="categoryProgressBarChart"></canvas>
+                        <p id="noCategoryProgressData" class="no-data-message hidden">Tiada data kemajuan kategori untuk dipaparkan.</p>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2 text-center">Graf ini menunjukkan peratusan kemajuan bagi setiap kategori item dalam senarai beli-belah dan acara.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-center text-[#3A5A40]">Pecahan Kos Sebenar mengikut Status</h3>
+                    <div class="chart-container">
+                        <canvas id="costByStatusChart"></canvas>
+                        <p id="noCostByStatusData" class="no-data-message hidden">Tiada data kos mengikut status untuk dipaparkan.</p>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2 text-center">Carta ini menunjukkan jumlah kos sebenar yang dibelanjakan mengikut status item (belum beli, dalam proses, selesai).</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="belibelah" class="tab-content">
+            <h2 class="text-2xl font-semibold mb-4 text-[#3A5A40]">Senarai Beli-belah</h2>
+            <p class="mb-6 text-gray-700">Bahagian ini memaparkan semua item yang perlu dibeli untuk majlis tunang. Anda boleh menapis senarai mengikut kategori atau status, dan mengemas kini butiran setiap item seperti kuantiti, anggaran kos, kos sebenar, dan status pembelian.</p>
+            <div class="filter-container mb-4 flex flex-wrap items-center">
+                <select id="filterKategoriBelibelah" class="mr-2 mb-2 md:mb-0">
+                    <option value="">Semua Kategori</option>
+                </select>
+                <select id="filterStatusBelibelah" class="mr-2 mb-2 md:mb-0">
+                    <option value="">Semua Status</option>
+                    <option value="Belum Beli">Belum Beli</option>
+                    <option value="Dalam Proses">Dalam Proses</option>
+                    <option value="Selesai">Selesai</option>
+                </select>
+                <button onclick="applyBelibelahFilters()" class="bg-[#76ABAE] text-white hover:bg-[#5F8C8D] mb-2 md:mb-0">Tapis</button>
+                <button onclick="resetBelibelahFilters()" class="bg-gray-500 text-white hover:bg-gray-600 mb-2 md:mb-0">Reset Penapis</button>
+                <button onclick="openAddItemModal('belibelah')" class="bg-green-500 text-white hover:bg-green-600 ml-auto mb-2 md:mb-0">Tambah Item Baru</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('belibelah', 'kategori')">Kategori <span id="sortKategoriBelibelah"></span></th>
+                            <th onclick="sortTable('belibelah', 'namaItem')">Nama Item <span id="sortNamaItemBelibelah"></span></th>
+                            <th onclick="sortTable('belibelah', 'kuantiti')">Kuantiti <span id="sortKuantitiBelibelah"></span></th>
+                            <th onclick="sortTable('belibelah', 'unit')">Unit <span id="sortUnitBelibelah"></span></th>
+                            <th onclick="sortTable('belibelah', 'anggaranKos')">Anggaran Kos (RM) <span id="sortAnggaranKosBelibelah"></span></th>
+                            <th onclick="sortTable('belibelah', 'kosSebenar')">Kos Sebenar (RM) <span id="sortKosSebenarBelibelah"></span></th>
+                            <th onclick="sortTable('belibelah', 'status')">Status <span id="sortStatusBelibelah"></span></th>
+                            <th>Nota</th>
+                            <th>Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="belibelahTableBody">
+                    </tbody>
+                </table>
+                <p id="emptyBelibelahTable" class="no-data-message hidden">Tiada item dalam senarai beli-belah. Sila tambah item baru.</p>
+            </div>
+        </div>
+
+        <div id="acara" class="tab-content">
+            <h2 class="text-2xl font-semibold mb-4 text-[#3A5A40]">Senarai Acara</h2>
+            <p class="mb-6 text-gray-700">Uruskan semua tugasan dan tempahan berkaitan acara di sini. Anda boleh menapis tugasan berdasarkan statusnya dan mengemas kini butiran seperti anggaran kos, kos sebenar, dan status penyelesaian.</p>
+             <div class="filter-container mb-4 flex flex-wrap items-center">
+                <select id="filterKategoriAcara" class="mr-2 mb-2 md:mb-0">
+                    <option value="">Semua Kategori</option>
+                </select>
+                <select id="filterStatusAcara" class="mr-2 mb-2 md:mb-0">
+                    <option value="">Semua Status</option>
+                    <option value="Belum Selesai">Belum Selesai</option>
+                    <option value="Dalam Proses">Dalam Proses</option>
+                    <option value="Dah Selesai Booking">Dah Selesai Booking</option>
+                    <option value="Selesai">Selesai</option>
+                </select>
+                <button onclick="applyAcaraFilters()" class="bg-[#76ABAE] text-white hover:bg-[#5F8C8D] mb-2 md:mb-0">Tapis</button>
+                <button onclick="resetAcaraFilters()" class="bg-gray-500 text-white hover:bg-gray-600 mb-2 md:mb-0">Reset Penapis</button>
+                <button onclick="openAddItemModal('acara')" class="bg-green-500 text-white hover:bg-green-600 ml-auto mb-2 md:mb-0">Tambah Item Baru</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('acara', 'kategori')">Kategori <span id="sortKategoriAcara"></span></th>
+                            <th onclick="sortTable('acara', 'namaItem')">Nama Item <span id="sortNamaItemAcara"></span></th>
+                            <th onclick="sortTable('acara', 'kuantiti')">Kuantiti <span id="sortKuantitiAcara"></span></th>
+                            <th onclick="sortTable('acara', 'unit')">Unit <span id="sortUnitAcara"></span></th>
+                            <th onclick="sortTable('acara', 'anggaranKos')">Anggaran Kos (RM) <span id="sortAnggaranKosAcara"></span></th>
+                            <th onclick="sortTable('acara', 'kosSebenar')">Kos Sebenar (RM) <span id="sortKosSebenarAcara"></span></th>
+                            <th onclick="sortTable('acara', 'status')">Status <span id="sortStatusAcara"></span></th>
+                            <th>Nota</th>
+                            <th>Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="acaraTableBody">
+                    </tbody>
+                </table>
+                <p id="emptyAcaraTable" class="no-data-message hidden">Tiada item dalam senarai acara. Sila tambah item baru.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="itemModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="text-xl font-semibold mb-4 text-[#3A5A40]">Tambah Item Baru</h3>
+            <input type="hidden" id="modalItemType">
+            <input type="hidden" id="modalItemIndex">
+            <div class="mb-3">
+                <label for="modalItemKategori" class="block text-sm font-medium text-gray-700">Kategori</label>
+                <input type="text" id="modalItemKategori" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
+            </div>
+            <div class="mb-3">
+                <label for="modalItemNama" class="block text-sm font-medium text-gray-700">Nama Item</label>
+                <input type="text" id="modalItemNama" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                <div>
+                    <label for="modalItemKuantiti" class="block text-sm font-medium text-gray-700">Kuantiti</label>
+                    <input type="number" id="modalItemKuantiti" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" min="0">
+                </div>
+                <div>
+                    <label for="modalItemUnit" class="block text-sm font-medium text-gray-700">Unit</label>
+                    <input type="text" id="modalItemUnit" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                <div>
+                    <label for="modalItemAnggaran" class="block text-sm font-medium text-gray-700">Anggaran Kos (RM)</label>
+                    <input type="number" id="modalItemAnggaran" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" min="0" step="0.01">
+                </div>
+                <div>
+                    <label for="modalItemSebenar" class="block text-sm font-medium text-gray-700">Kos Sebenar (RM)</label>
+                    <input type="number" id="modalItemSebenar" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" min="0" step="0.01">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="modalItemStatus" class="block text-sm font-medium text-gray-700">Status</label>
+                <select id="modalItemStatus" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
+                    </select>
+            </div>
+            <div class="mb-4">
+                <label for="modalItemNota" class="block text-sm font-medium text-gray-700">Nota</label>
+                <textarea id="modalItemNota" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2"></textarea>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeItemModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Batal</button>
+                <button onclick="saveItem()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal hidden">
+        <div class="confirm-modal-content">
+            <p id="confirmMessage" class="mb-4"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmYes" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Ya</button>
+                <button id="confirmNo" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Tidak</button>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+    let dataBelibelah = [
+        { id: 'bb1', kategori: "Barang Masak", namaItem: "Lada kering", kuantiti: 0.5, unit: "kg", anggaranKos: 15.00, kosSebenar: 12.50, status: "Selesai", nota: "" },
+        { id: 'bb2', kategori: "Barang Masak", namaItem: "Bawang merah", kuantiti: 1, unit: "kg", anggaranKos: 8.00, kosSebenar: 7.50, status: "Dalam Proses", nota: "" },
+        { id: 'bb3', kategori: "Barang Masak", namaItem: "Bawang besar", kuantiti: 1, unit: "kg", anggaranKos: 7.00, kosSebenar: 6.80, status: "Belum Beli", nota: "" },
+        { id: 'bb4', kategori: "Barang Masak", namaItem: "Bawang putih", kuantiti: 0.5, unit: "kg", anggaranKos: 10.00, kosSebenar: 9.50, status: "Belum Beli", nota: "" },
+        { id: 'bb5', kategori: "Barang Masak", namaItem: "Halia", kuantiti: 0.2, unit: "kg", anggaranKos: 5.00, kosSebenar: 4.80, status: "Belum Beli", nota: "" },
+        { id: 'bb6', kategori: "Barang Masak", namaItem: "Kunyit", kuantiti: 0.2, unit: "kg", anggaranKos: 6.00, kosSebenar: 5.50, status: "Belum Beli", nota: "" },
+        { id: 'bb7', kategori: "Barang Masak", namaItem: "Kunyit serbuk", kuantiti: 1, unit: "botol", anggaranKos: 12.00, kosSebenar: 11.00, status: "Belum Beli", nota: "" },
+        { id: 'bb8', kategori: "Barang Masak", namaItem: "Santan kotak", kuantiti: 3, unit: "kotak", anggaranKos: 4.50, kosSebenar: 4.20, status: "Belum Beli", nota: "" },
+        { id: 'bb9', kategori: "Barang Masak", namaItem: "Belacan", kuantiti: 1, unit: "ketul", anggaranKos: 3.00, kosSebenar: 2.80, status: "Belum Beli", nota: "" },
+        { id: 'bb10', kategori: "Barang Masak", namaItem: "Minyak masak", kuantiti: 5, unit: "liter", anggaranKos: 25.00, kosSebenar: 24.00, status: "Belum Beli", nota: "" },
+        { id: 'bb11', kategori: "Barang Masak", namaItem: "Lada / Cili rawit", kuantiti: 0.5, unit: "kg", anggaranKos: 18.00, kosSebenar: 17.00, status: "Belum Beli", nota: "" },
+        { id: 'bb12', kategori: "Barang Masak", namaItem: "Udang kering", kuantiti: 0.3, unit: "kg", anggaranKos: 30.00, kosSebenar: 28.00, status: "Belum Beli", nota: "" },
+        { id: 'bb13', kategori: "Barang Masak", namaItem: "Ikan bilis", kuantiti: 0.5, unit: "kg", anggaranKos: 20.00, kosSebenar: 19.00, status: "Belum Beli", nota: "" },
+        { id: 'bb14', kategori: "Barang Basah", namaItem: "Telor", kuantiti: 30, unit: "biji", anggaranKos: 12.00, kosSebenar: 11.50, status: "Dalam Proses", nota: "" },
+        { id: 'bb15', kategori: "Barang Basah", namaItem: "Ikan Kembung", kuantiti: 2, unit: "kg", anggaranKos: 40.00, kosSebenar: 38.00, status: "Belum Beli", nota: "Ikan apa? Ikan Kembung" },
+        { id: 'bb16', kategori: "Barang Basah", namaItem: "Ayam", kuantiti: 3, unit: "ekor", anggaranKos: 35.00, kosSebenar: 33.00, status: "Belum Beli", nota: "" },
+        { id: 'bb17', kategori: "Barang Basah", namaItem: "Udang", kuantiti: 1, unit: "kg", anggaranKos: 50.00, kosSebenar: 48.00, status: "Belum Beli", nota: "" },
+        { id: 'bb18', kategori: "Barang Basah", namaItem: "Sayur labu", kuantiti: 1, unit: "kg", anggaranKos: 6.00, kosSebenar: 5.50, status: "Belum Beli", nota: "" },
+        { id: 'bb19', kategori: "Barang Basah", namaItem: "Kacang panjang", kuantiti: 2, unit: "ikat", anggaranKos: 4.00, kosSebenar: 3.80, status: "Belum Beli", nota: "" },
+        { id: 'bb20', kategori: "Barang Basah", namaItem: "Buah pencuci mulut", kuantiti: 3, unit: "kg", anggaranKos: 25.00, kosSebenar: 23.00, status: "Belum Beli", nota: "" },
+        { id: 'bb21', kategori: "Barang Basah", namaItem: "Ulam-ulaman", kuantiti: 2, unit: "ikat", anggaranKos: 10.00, kosSebenar: 9.50, status: "Belum Beli", nota: "" },
+        { id: 'bb22', kategori: "Barang Kering", namaItem: "Kordial Sunquick", kuantiti: 1, unit: "botol", anggaranKos: 15.00, kosSebenar: 14.00, status: "Belum Beli", nota: "" },
+        { id: 'bb23', kategori: "Barang Kering", namaItem: "Air sirap", kuantiti: 2, unit: "botol", anggaranKos: 8.00, kosSebenar: 7.50, status: "Belum Beli", nota: "" },
+        { id: 'bb24', kategori: "Barang Kering", namaItem: "Beras", kuantiti: 10, unit: "kg", anggaranKos: 30.00, kosSebenar: 29.00, status: "Belum Beli", nota: "" },
+        { id: 'bb25', kategori: "Barang Kering", namaItem: "Gula", kuantiti: 1, unit: "kg", anggaranKos: 5.00, kosSebenar: 4.80, status: "Belum Beli", nota: "" },
+        { id: 'bb26', kategori: "Barang Kering", namaItem: "Gas masak", kuantiti: 1, unit: "tong", anggaranKos: 30.00, kosSebenar: 28.00, status: "Belum Beli", nota: "" },
+        { id: 'bb27', kategori: "Kuih", namaItem: "Koci labu", kuantiti: 50, unit: "pcs", anggaranKos: 50.00, kosSebenar: 50.00, status: "Selesai", nota: "Done" },
+        { id: 'bb28', kategori: "Kuih", namaItem: "Putri ayu", kuantiti: 50, unit: "pcs", anggaranKos: 45.00, kosSebenar: 45.00, status: "Selesai", nota: "Done" },
+        { id: 'bb29', kategori: "Kuih", namaItem: "Kaswi leleh", kuantiti: 50, unit: "pcs", anggaranKos: 60.00, kosSebenar: 60.00, status: "Selesai", nota: "Done" },
+        { id: 'bb30', kategori: "Kuih", namaItem: "Tepong pelita", kuantiti: 50, unit: "pcs", anggaranKos: 55.00, kosSebenar: 55.00, status: "Selesai", nota: "Done" },
+        { id: 'bb31', kategori: "Kuih", namaItem: "Cara berlauk", kuantiti: 50, unit: "pcs", anggaranKos: 70.00, kosSebenar: 70.00, status: "Selesai", nota: "Done" },
+        // Suggested additional shopping items
+        { id: 'bb32', kategori: "Hiasan", namaItem: "Bunga Segar", kuantiti: 2, unit: "ikat", anggaranKos: 80.00, kosSebenar: 0, status: "Belum Beli", nota: "Untuk pelamin dan meja" },
+        { id: 'bb33', kategori: "Hiasan", namaItem: "Riben", kuantiti: 10, unit: "gulung", anggaranKos: 5.00, kosSebenar: 0, status: "Belum Beli", nota: "Pelbagai warna" },
+        { id: 'bb34', kategori: "Pakaian", namaItem: "Baju Tunang", kuantiti: 1, unit: "pasang", anggaranKos: 500.00, kosSebenar: 0, status: "Belum Beli", nota: "Perlu tempah" },
+        { id: 'bb35', kategori: "Pakaian", namaItem: "Kasut", kuantiti: 1, unit: "pasang", anggaranKos: 150.00, kosSebenar: 0, status: "Belum Beli", nota: "Sesuai dengan baju" },
+        { id: 'bb36', kategori: "Aksesori", namaItem: "Cincin Tunang", kuantiti: 1, unit: "unit", anggaranKos: 1500.00, kosSebenar: 0, status: "Belum Beli", nota: "Pilihan reka bentuk" },
+        { id: 'bb37', kategori: "Alat Tulis", namaItem: "Kad Jemputan", kuantiti: 100, unit: "keping", anggaranKos: 1.50, kosSebenar: 0, status: "Belum Beli", nota: "Perlu cetak" },
+        { id: 'bb38', kategori: "Cenderahati", namaItem: "Cenderahati Tetamu", kuantiti: 100, unit: "unit", anggaranKos: 3.00, kosSebenar: 0, status: "Belum Beli", nota: "Jika berbeza dari goodies" },
+    ];
+
+    let dataAcara = [
+        { id: 'ac1', kategori: "Booking", namaItem: "Upah penduduk", kuantiti: 0, unit: "", anggaranKos: 200.00, kosSebenar: 200.00, status: "Dah Selesai Booking", nota: "RMxx (Perlu isi jumlah sebenar)" },
+        { id: 'ac2', kategori: "Booking", namaItem: "Meja", kuantiti: 5, unit: "unit", anggaranKos: 50.00, kosSebenar: 50.00, status: "Dah Selesai Booking", nota: "" },
+        { id: 'ac3', kategori: "Booking", namaItem: "Kerusi", kuantiti: 50, unit: "unit", anggaranKos: 100.00, kosSebenar: 100.00, status: "Dah Selesai Booking", nota: "50?" },
+        { id: 'ac4', kategori: "Booking", namaItem: "Kipas", kuantiti: 3, unit: "unit", anggaranKos: 30.00, kosSebenar: 28.00, status: "Dalam Proses", nota: "" },
+        { id: 'ac5', kategori: "Booking", namaItem: "Alas meja", kuantiti: 5, unit: "unit", anggaranKos: 20.00, kosSebenar: 18.00, status: "Belum Selesai", nota: "" },
+        { id: 'ac6', kategori: "Booking", namaItem: "Canopy", kuantiti: 1, unit: "unit", anggaranKos: 150.00, kosSebenar: 140.00, status: "Dalam Proses", nota: "" },
+        { id: 'ac7', kategori: "Booking", namaItem: "Pinggan & cawan", kuantiti: 50, unit: "set", anggaranKos: 70.00, kosSebenar: 65.00, status: "Belum Selesai", nota: "" },
+        { id: 'ac8', kategori: "Misc", namaItem: "Tong air utk air minum", kuantiti: 2, unit: "unit", anggaranKos: 10.00, kosSebenar: 9.00, status: "Belum Selesai", nota: "" },
+        { id: 'ac9', kategori: "Misc", namaItem: "Tong air utk basuh tangan", kuantiti: 2, unit: "unit", anggaranKos: 10.00, kosSebenar: 9.00, status: "Belum Selesai", nota: "" },
+        { id: 'ac10', kategori: "Misc", namaItem: "Meja dessert", kuantiti: 1, unit: "unit", anggaranKos: 40.00, kosSebenar: 35.00, status: "Belum Selesai", nota: "" },
+        { id: 'ac11', kategori: "Goodies", namaItem: "Goodies", kuantiti: 100, unit: "pcs", anggaranKos: 100.00, kosSebenar: 95.00, status: "Belum Selesai", nota: "Tarikh prepare: dd/mm/yy, Berapa pcs:" },
+        // New items added based on user's request, with some default values
+        { id: 'ac12', kategori: "Booking", namaItem: "Meja Tambahan", kuantiti: 2, unit: "unit", anggaranKos: 20.00, kosSebenar: 0, status: "Belum Selesai", nota: "Meja x 5" },
+        { id: 'ac13', kategori: "Booking", namaItem: "Kerusi Tambahan", kuantiti: 10, unit: "unit", anggaranKos: 20.00, kosSebenar: 0, status: "Belum Selesai", nota: "Kerusi x 50?" },
+        { id: 'ac14', kategori: "Misc", namaItem: "Tong Air Minum", kuantiti: 1, unit: "unit", anggaranKos: 15.00, kosSebenar: 0, status: "Belum Selesai", nota: "tong air utk air minum" },
+        { id: 'ac15', kategori: "Misc", namaItem: "Tong Air Basuh Tangan", kuantiti: 1, unit: "unit", anggaranKos: 15.00, kosSebenar: 0, status: "Belum Selesai", nota: "tong air utk basuh tangan?" },
+        { id: 'ac16', kategori: "Misc", namaItem: "Meja Dessert", kuantiti: 1, unit: "unit", anggaranKos: 50.00, kosSebenar: 0, status: "Belum Selesai", nota: "meja dessert?" },
+        { id: 'ac17', kategori: "Goodies", namaItem: "Goodies Pack", kuantiti: 100, unit: "pcs", anggaranKos: 200.00, kosSebenar: 0, status: "Belum Selesai", nota: "Tarikh prepare : dd/mm/yy, Berapa pcs :" },
+        // Suggested additional event items
+        { id: 'ac18', kategori: "Perkhidmatan", namaItem: "Juru Gambar/Videographer", kuantiti: 1, unit: "pakej", anggaranKos: 1200.00, kosSebenar: 0, status: "Belum Selesai", nota: "Pilih pakej yang sesuai" },
+        { id: 'ac19', kategori: "Perkhidmatan", namaItem: "Katering", kuantiti: 1, unit: "pakej", anggaranKos: 2500.00, kosSebenar: 0, status: "Belum Selesai", nota: "Pilih menu dan jumlah tetamu" },
+        { id: 'ac20', kategori: "Hiasan", namaItem: "Pelamin", kuantiti: 1, unit: "set", anggaranKos: 800.00, kosSebenar: 0, status: "Belum Selesai", nota: "Reka bentuk dan pemasangan" },
+        { id: 'ac21', kategori: "Perkhidmatan", namaItem: "Sistem Bunyi/PA System", kuantiti: 1, unit: "set", anggaranKos: 200.00, kosSebenar: 0, status: "Belum Selesai", nota: "Untuk pengumuman dan muzik" },
+        { id: 'ac22', kategori: "Perkhidmatan", namaItem: "Pengacara Majlis", kuantiti: 1, unit: "orang", anggaranKos: 300.00, kosSebenar: 0, status: "Belum Selesai", nota: "Untuk kelancaran acara" },
+        { id: 'ac23', kategori: "Booking", namaItem: "Dewan/Lokasi", kuantiti: 1, unit: "hari", anggaranKos: 500.00, kosSebenar: 0, status: "Belum Selesai", nota: "Jika tidak di rumah" },
+    ];
+
+    let anggaranBelibelahChartInstance = null;
+    let costVarianceChartInstance = null;
+    let categoryProgressBarChartInstance = null;
+    let costByStatusChartInstance = null;
+
+    const belibelahStatusOptions = ["Belum Beli", "Dalam Proses", "Selesai"];
+    const acaraStatusOptions = ["Belum Selesai", "Dalam Proses", "Dah Selesai Booking", "Selesai"];
+
+    let currentSort = {
+        belibelah: { column: null, direction: 'asc' },
+        acara: { column: null, direction: 'asc' }
+    };
+
+    function openTab(event, tabName) {
+        let i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("tab-button");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        document.getElementById(tabName).classList.add("active");
+        event.currentTarget.classList.add("active");
+        if (tabName === 'utama') {
+            updateAggregates();
+            renderCharts();
+        } else if (tabName === 'belibelah') {
+            populateTable('belibelah', 'belibelahTableBody', dataBelibelah, belibelahStatusOptions, document.getElementById('filterKategoriBelibelah').value, document.getElementById('filterStatusBelibelah').value);
+        } else if (tabName === 'acara') {
+            populateTable('acara', 'acaraTableBody', dataAcara, acaraStatusOptions, document.getElementById('filterKategoriAcara').value, document.getElementById('filterStatusAcara').value);
+        }
+    }
+
+    function getStatusClass(status) {
+        if (status === "Belum Beli" || status === "Belum Selesai") return 'status-belum';
+        if (status === "Dalam Proses") return 'status-proses';
+        if (status === "Selesai" || status === "Dah Selesai Booking") return 'status-selesai';
+        return '';
+    }
+    
+    function populateTable(dataType, tableBodyId, dataArray, statusOptions, filterKategoriValue = '', filterStatusValue = '') {
+        const tableBody = document.getElementById(tableBodyId);
+        tableBody.innerHTML = '';
+        
+        let filteredData = dataArray.filter(item => {
+            const kategoriMatch = filterKategoriValue ? item.kategori === filterKategoriValue : true;
+            const statusMatch = filterStatusValue ? item.status === filterStatusValue : true;
+            return kategoriMatch && statusMatch;
+        });
+
+        const sortColumn = currentSort[dataType].column;
+        const sortDirection = currentSort[dataType].direction;
+
+        if (sortColumn) {
+            filteredData.sort((a, b) => {
+                let valA = a[sortColumn];
+                let valB = b[sortColumn];
+
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        const emptyTableMessage = document.getElementById(`empty${dataType.charAt(0).toUpperCase() + dataType.slice(1)}Table`);
+        if (filteredData.length === 0) {
+            if (emptyTableMessage) emptyTableMessage.classList.remove('hidden');
+        } else {
+            if (emptyTableMessage) emptyTableMessage.classList.add('hidden');
+        }
+
+        filteredData.forEach((item, index) => {
+            const originalIndex = dataArray.findIndex(originalItem => originalItem.id === item.id);
+            const row = tableBody.insertRow();
+            row.innerHTML = `
+                <td>${item.kategori}</td>
+                <td>${item.namaItem}</td>
+                <td><input type="number" value="${item.kuantiti || 0}" onchange="updateItemValue('${dataType}', ${originalIndex}, 'kuantiti', this.value)" min="0"></td>
+                <td><input type="text" value="${item.unit || ''}" onchange="updateItemValue('${dataType}', ${originalIndex}, 'unit', this.value)"></td>
+                <td><input type="number" value="${item.anggaranKos || 0}" onchange="updateItemValue('${dataType}', ${originalIndex}, 'anggaranKos', this.value)" min="0" step="0.01"></td>
+                <td><input type="number" value="${item.kosSebenar || 0}" onchange="updateItemValue('${dataType}', ${originalIndex}, 'kosSebenar', this.value)" min="0" step="0.01"></td>
+                <td>
+                    <select onchange="updateItemValue('${dataType}', ${originalIndex}, 'status', this.value)" class="${getStatusClass(item.status)} p-2 rounded">
+                        ${statusOptions.map(opt => `<option value="${opt}" ${item.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    </select>
+                </td>
+                <td><textarea rows="2" class="w-full p-1 border rounded" onchange="updateItemValue('${dataType}', ${originalIndex}, 'nota', this.value)">${item.nota || ''}</textarea></td>
+                <td>
+                    <button onclick="openEditItemModal('${dataType}', ${originalIndex})" class="bg-blue-500 text-white hover:bg-blue-600 px-3 py-1.5 rounded text-xs mr-1 mb-1">Edit</button>
+                    <button onclick="showConfirmModal('Anda pasti ingin memadam item ini?', () => deleteItemConfirmed('${dataType}', ${originalIndex}))" class="bg-red-500 text-white hover:bg-red-600 px-3 py-1.5 rounded text-xs">Padam</button>
+                </td>
+            `;
+        });
+        updateAggregates();
+        updateSortIndicators(dataType);
+    }
+
+    function updateItemValue(dataType, index, field, value) {
+        let dataArray = dataType === 'belibelah' ? dataBelibelah : dataAcara;
+        if (field === 'kuantiti' || field === 'anggaranKos' || field === 'kosSebenar') {
+            dataArray[index][field] = parseFloat(value) || 0;
+        } else {
+            dataArray[index][field] = value;
+        }
+        
+        if (dataType === 'belibelah') {
+            populateTable('belibelah', 'belibelahTableBody', dataBelibelah, belibelahStatusOptions, document.getElementById('filterKategoriBelibelah').value, document.getElementById('filterStatusBelibelah').value);
+        } else {
+            populateTable('acara', 'acaraTableBody', dataAcara, acaraStatusOptions, document.getElementById('filterKategoriAcara').value, document.getElementById('filterStatusAcara').value);
+        }
+        updateAggregates();
+        renderCharts();
+        const tableBodyId = dataType === 'belibelah' ? 'belibelahTableBody' : 'acaraTableBody';
+        const tableBody = document.getElementById(tableBodyId);
+        const displayedIndex = Array.from(tableBody.rows).findIndex(row => {
+            const editButton = row.querySelector('button[onclick*="openEditItemModal"]');
+            if (editButton) {
+                const match = editButton.onclick.toString().match(/openEditItemModal\('(.+?)', (\d+)\)/);
+                return match && parseInt(match[2]) === index;
+            }
+            return false;
+        });
+
+        if (tableBody.rows[displayedIndex]) {
+            const statusSelect = tableBody.rows[displayedIndex].cells[6].querySelector('select');
+            if (statusSelect) {
+                statusSelect.className = `p-2 rounded ${getStatusClass(dataArray[index].status)}`;
+            }
+        }
+    }
+    
+    function populateFilterDropdown(dropdownId, dataArray, field) {
+        const dropdown = document.getElementById(dropdownId);
+        while (dropdown.options.length > 1) {
+            dropdown.remove(1);
+        }
+        const uniqueValues = [...new Set(dataArray.map(item => item[field]))];
+        uniqueValues.sort().forEach(value => {
+            if (value) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                dropdown.appendChild(option);
+            }
+        });
+    }
+
+    function applyBelibelahFilters() {
+        const kategori = document.getElementById('filterKategoriBelibelah').value;
+        const status = document.getElementById('filterStatusBelibelah').value;
+        populateTable('belibelah', 'belibelahTableBody', dataBelibelah, belibelahStatusOptions, kategori, status);
+    }
+
+    function resetBelibelahFilters() {
+        document.getElementById('filterKategoriBelibelah').value = '';
+        document.getElementById('filterStatusBelibelah').value = '';
+        applyBelibelahFilters();
+    }
+
+    function applyAcaraFilters() {
+        const kategori = document.getElementById('filterKategoriAcara').value;
+        const status = document.getElementById('filterStatusAcara').value;
+        populateTable('acara', 'acaraTableBody', dataAcara, acaraStatusOptions, kategori, status);
+    }
+
+    function resetAcaraFilters() {
+        document.getElementById('filterKategoriAcara').value = '';
+        document.getElementById('filterStatusAcara').value = '';
+        applyAcaraFilters();
+    }
+
+    function updateAggregates() {
+        let totalAnggaran = 0;
+        let totalSebenar = 0;
+        let completedBelibelah = 0;
+        let completedAcara = 0;
+
+        dataBelibelah.forEach(item => {
+            totalAnggaran += item.anggaranKos || 0;
+            totalSebenar += item.kosSebenar || 0;
+            if (item.status === "Selesai") completedBelibelah++;
+        });
+        const completedBelibelahCountEl = document.getElementById('completedBelibelahCount');
+        if (completedBelibelahCountEl) completedBelibelahCountEl.textContent = completedBelibelah;
+        const totalBelibelahCountEl = document.getElementById('totalBelibelahCount');
+        if (totalBelibelahCountEl) totalBelibelahCountEl.textContent = dataBelibelah.length;
+
+        const progressBelibelah = dataBelibelah.length > 0 ? (completedBelibelah / dataBelibelah.length) * 100 : 0;
+        const progressBelibelahBar = document.getElementById('progressBelibelahBar');
+        if (progressBelibelahBar) {
+            progressBelibelahBar.style.width = `${progressBelibelah.toFixed(0)}%`;
+            progressBelibelahBar.textContent = `${progressBelibelah.toFixed(0)}%`;
+        }
+
+
+        dataAcara.forEach(item => {
+            totalAnggaran += item.anggaranKos || 0;
+            totalSebenar += item.kosSebenar || 0;
+            if (item.status === "Selesai" || item.status === "Dah Selesai Booking") completedAcara++;
+        });
+        const completedAcaraCountEl = document.getElementById('completedAcaraCount');
+        if (completedAcaraCountEl) completedAcaraCountEl.textContent = completedAcara;
+        const totalAcaraCountEl = document.getElementById('totalAcaraCount');
+        if (totalAcaraCountEl) totalAcaraCountEl.textContent = dataAcara.length;
+        const progressAcara = dataAcara.length > 0 ? (completedAcara / dataAcara.length) * 100 : 0;
+        const progressAcaraBar = document.getElementById('progressAcaraBar');
+        if (progressAcaraBar) {
+            progressAcaraBar.style.width = `${progressAcara.toFixed(0)}%`;
+            progressAcaraBar.textContent = `${progressAcara.toFixed(0)}%`;
+        }
+
+        const totalCompletedItems = completedBelibelah + completedAcara;
+        const totalOverallItems = dataBelibelah.length + dataAcara.length;
+
+        const totalAnggaranEl = document.getElementById('totalAnggaran');
+        if (totalAnggaranEl) totalAnggaranEl.textContent = `RM ${totalAnggaran.toFixed(2)}`;
+        const totalSebenarEl = document.getElementById('totalSebenar');
+        if (totalSebenarEl) totalSebenarEl.textContent = `RM ${totalSebenar.toFixed(2)}`;
+        const remainingBudgetEl = document.getElementById('remainingBudget');
+        if (remainingBudgetEl) remainingBudgetEl.textContent = `RM ${(totalAnggaran - totalSebenar).toFixed(2)}`;
+        
+        const overallProgressValue = totalOverallItems > 0 ? (totalCompletedItems / totalOverallItems) * 100 : 0;
+        const overallProgressEl = document.getElementById('overallProgress');
+        if (overallProgressEl) overallProgressEl.textContent = `${overallProgressValue.toFixed(0)}%`;
+    }
+
+    function wrapLabels(label, maxLength = 16) {
+        const words = label.split(' ');
+        let lines = [];
+        let currentLine = '';
+
+        words.forEach(word => {
+            if ((currentLine + ' ' + word).length <= maxLength) {
+                currentLine += (currentLine === '' ? '' : ' ') + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        });
+        lines.push(currentLine);
+        return lines;
+    }
+
+    function renderAnggaranBelibelahChart() {
+        const ctx = document.getElementById('anggaranBelibelahChart').getContext('2d');
+        const kategoriData = {};
+        dataBelibelah.forEach(item => {
+            if (!kategoriData[item.kategori]) {
+                kategoriData[item.kategori] = 0;
+            }
+            kategoriData[item.kategori] += item.anggaranKos || 0;
+        });
+
+        const labels = Object.keys(kategoriData);
+        const data = Object.values(kategoriData);
+
+        const noBelibelahDataEl = document.getElementById('noBelibelahData');
+        if (labels.length === 0 || data.every(val => val === 0)) {
+            if (noBelibelahDataEl) noBelibelahDataEl.classList.remove('hidden');
+            if (anggaranBelibelahChartInstance) anggaranBelibelahChartInstance.destroy();
+            anggaranBelibelahChartInstance = null;
+            return;
+        } else {
+            if (noBelibelahDataEl) noBelibelahDataEl.classList.add('hidden');
+        }
+
+        if (anggaranBelibelahChartInstance) {
+            anggaranBelibelahChartInstance.destroy();
+        }
+
+        anggaranBelibelahChartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels.map(label => wrapLabels(label)),
+                datasets: [{
+                    label: 'Anggaran Kos (RM)',
+                    data: data,
+                    backgroundColor: [
+                        'rgba(118, 171, 174, 0.7)', // Soft Teal
+                        'rgba(255, 159, 64, 0.7)',  // Orange
+                        'rgba(255, 99, 132, 0.7)',  // Red
+                        'rgba(54, 162, 235, 0.7)',  // Blue
+                        'rgba(255, 206, 86, 0.7)',  // Yellow
+                        'rgba(75, 192, 192, 0.7)',  // Green
+                        'rgba(153, 102, 255, 0.7)', // Purple
+                        'rgba(201, 203, 207, 0.7)'  // Grey
+                    ],
+                    borderColor: [
+                        'rgba(118, 171, 174, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(201, 203, 207, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label.join(' ') || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += new Intl.NumberFormat('ms-MY', { style: 'currency', currency: 'MYR' }).format(context.parsed);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    title: {
+                        display: false,
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCostVarianceChart() {
+        const ctx = document.getElementById('costVarianceChart').getContext('2d');
+        const categoryVariance = {};
+
+        [...dataBelibelah, ...dataAcara].forEach(item => {
+            if (item.kosSebenar > 0 || item.anggaranKos > 0) {
+                const variance = (item.kosSebenar || 0) - (item.anggaranKos || 0);
+                if (!categoryVariance[item.kategori]) {
+                    categoryVariance[item.kategori] = 0;
+                }
+                categoryVariance[item.kategori] += variance;
+            }
+        });
+
+        const labels = Object.keys(categoryVariance);
+        const data = Object.values(categoryVariance);
+
+        const noVarianceDataEl = document.getElementById('noVarianceData');
+        if (labels.length === 0 || data.every(val => val === 0)) {
+            if (noVarianceDataEl) noVarianceDataEl.classList.remove('hidden');
+            if (costVarianceChartInstance) costVarianceChartInstance.destroy();
+            costVarianceChartInstance = null;
+            return;
+        } else {
+            if (noVarianceDataEl) noVarianceDataEl.classList.add('hidden');
+        }
+
+        const backgroundColors = data.map(val => val >= 0 ? 'rgba(255, 99, 132, 0.7)' : 'rgba(75, 192, 192, 0.7)'); // Red for over, Green for under
+        const borderColors = data.map(val => val >= 0 ? 'rgba(255, 99, 132, 1)' : 'rgba(75, 192, 192, 1)');
+
+        if (costVarianceChartInstance) {
+            costVarianceChartInstance.destroy();
+        }
+
+        costVarianceChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.map(label => wrapLabels(label)),
+                datasets: [{
+                    label: 'Varians Kos (RM)',
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label.join(' ') || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('ms-MY', { style: 'currency', currency: 'MYR' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    title: {
+                        display: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Varians (RM)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Kategori'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCategoryProgressBarChart() {
+        const ctx = document.getElementById('categoryProgressBarChart').getContext('2d');
+        const allData = [...dataBelibelah, ...dataAcara];
+        const categoryProgress = {};
+
+        allData.forEach(item => {
+            if (!categoryProgress[item.kategori]) {
+                categoryProgress[item.kategori] = { completed: 0, total: 0 };
+            }
+            categoryProgress[item.kategori].total++;
+            if (item.status === "Selesai" || item.status === "Dah Selesai Booking") {
+                categoryProgress[item.kategori].completed++;
+            }
+        });
+
+        const labels = Object.keys(categoryProgress);
+        const data = labels.map(kategori => {
+            const { completed, total } = categoryProgress[kategori];
+            return total > 0 ? (completed / total) * 100 : 0;
+        });
+
+        const noCategoryProgressDataEl = document.getElementById('noCategoryProgressData');
+        if (labels.length === 0 || data.every(val => val === 0)) {
+            if (noCategoryProgressDataEl) noCategoryProgressDataEl.classList.remove('hidden');
+            if (categoryProgressBarChartInstance) categoryProgressBarChartInstance.destroy();
+            categoryProgressBarChartInstance = null;
+            return;
+        } else {
+            if (noCategoryProgressDataEl) noCategoryProgressDataEl.classList.add('hidden');
+        }
+
+        if (categoryProgressBarChartInstance) {
+            categoryProgressBarChartInstance.destroy();
+        }
+
+        categoryProgressBarChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.map(label => wrapLabels(label)),
+                datasets: [{
+                    label: 'Peratus Kemajuan (%)',
+                    data: data,
+                    backgroundColor: 'rgba(118, 171, 174, 0.7)', // Soft Teal
+                    borderColor: 'rgba(118, 171, 174, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label.join(' ') || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.x !== null) {
+                                    label += `${context.parsed.x.toFixed(1)}%`;
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    title: {
+                        display: false,
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Peratus (%)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Kategori'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCostByStatusChart() {
+        const ctx = document.getElementById('costByStatusChart').getContext('2d');
+        const statusCosts = {
+            "Belum Beli": 0,
+            "Belum Selesai": 0,
+            "Dalam Proses": 0,
+            "Dah Selesai Booking": 0,
+            "Selesai": 0
+        };
+
+        [...dataBelibelah, ...dataAcara].forEach(item => {
+            if (item.kosSebenar > 0) {
+                if (statusCosts.hasOwnProperty(item.status)) {
+                    statusCosts[item.status] += item.kosSebenar;
+                } else if (item.status === "Belum Beli") {
+                    statusCosts["Belum Selesai"] += item.kosSebenar;
+                }
+            }
+        });
+        
+        const labels = ["Belum Selesai", "Dalam Proses", "Selesai"];
+        const data = [
+            (statusCosts["Belum Beli"] || 0) + (statusCosts["Belum Selesai"] || 0),
+            statusCosts["Dalam Proses"] || 0,
+            (statusCosts["Selesai"] || 0) + (statusCosts["Dah Selesai Booking"] || 0)
+        ];
+
+        const noCostByStatusDataEl = document.getElementById('noCostByStatusData');
+        if (data.every(val => val === 0)) {
+            if (noCostByStatusDataEl) noCostByStatusDataEl.classList.remove('hidden');
+            if (costByStatusChartInstance) costByStatusChartInstance.destroy();
+            costByStatusChartInstance = null;
+            return;
+        } else {
+            if (noCostByStatusDataEl) noCostByStatusDataEl.classList.add('hidden');
+        }
+
+        if (costByStatusChartInstance) {
+            costByStatusChartInstance.destroy();
+        }
+
+        costByStatusChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels.map(label => wrapLabels(label)),
+                datasets: [{
+                    label: 'Kos Sebenar (RM)',
+                    data: data,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)', // Red for Belum Selesai
+                        'rgba(255, 206, 86, 0.7)', // Yellow for Dalam Proses
+                        'rgba(75, 192, 192, 0.7)'  // Green for Selesai
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label.join(' ') || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('ms-MY', { style: 'currency', currency: 'MYR' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    title: {
+                        display: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Kos Sebenar (RM)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Status'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCharts() {
+        renderAnggaranBelibelahChart();
+        renderCostVarianceChart();
+        renderCategoryProgressBarChart();
+        renderCostByStatusChart();
+    }
+
+    function openAddItemModal(type) {
+        document.getElementById('modalTitle').textContent = 'Tambah Item Baru';
+        document.getElementById('modalItemType').value = type;
+        document.getElementById('modalItemIndex').value = -1;
+        document.getElementById('modalItemKategori').value = '';
+        document.getElementById('modalItemNama').value = '';
+        document.getElementById('modalItemKuantiti').value = '';
+        document.getElementById('modalItemUnit').value = '';
+        document.getElementById('modalItemAnggaran').value = '';
+        document.getElementById('modalItemSebenar').value = '';
+        document.getElementById('modalItemNota').value = '';
+
+        const statusDropdown = document.getElementById('modalItemStatus');
+        statusDropdown.innerHTML = '';
+        const options = type === 'belibelah' ? belibelahStatusOptions : acaraStatusOptions;
+        options.forEach(opt => {
+            const optionEl = document.createElement('option');
+            optionEl.value = opt;
+            optionEl.textContent = opt;
+            statusDropdown.appendChild(optionEl);
+        });
+        statusDropdown.value = options[0];
+
+        document.getElementById('itemModal').classList.add('active');
+    }
+
+    function openEditItemModal(type, index) {
+        document.getElementById('modalTitle').textContent = 'Edit Item';
+        document.getElementById('modalItemType').value = type;
+        document.getElementById('modalItemIndex').value = index;
+        
+        const dataArray = type === 'belibelah' ? dataBelibelah : dataAcara;
+        const item = dataArray[index];
+
+        document.getElementById('modalItemKategori').value = item.kategori;
+        document.getElementById('modalItemNama').value = item.namaItem;
+        document.getElementById('modalItemKuantiti').value = item.kuantiti || 0;
+        document.getElementById('modalItemUnit').value = item.unit || '';
+        document.getElementById('modalItemAnggaran').value = item.anggaranKos || 0;
+        document.getElementById('modalItemSebenar').value = item.kosSebenar || 0;
+        document.getElementById('modalItemNota').value = item.nota || '';
+
+        const statusDropdown = document.getElementById('modalItemStatus');
+        statusDropdown.innerHTML = '';
+        const options = type === 'belibelah' ? belibelahStatusOptions : acaraStatusOptions;
+        options.forEach(opt => {
+            const optionEl = document.createElement('option');
+            optionEl.value = opt;
+            optionEl.textContent = opt;
+            statusDropdown.appendChild(optionEl);
+        });
+        statusDropdown.value = item.status;
+
+        document.getElementById('itemModal').classList.add('active');
+    }
+
+    function closeItemModal() {
+        document.getElementById('itemModal').classList.remove('active');
+    }
+
+    function generateUniqueId(prefix) {
+        return prefix + Date.now() + Math.random().toString(36).substring(2, 7);
+    }
+
+    function saveItem() {
+        const type = document.getElementById('modalItemType').value;
+        const index = parseInt(document.getElementById('modalItemIndex').value);
+        
+        const itemData = {
+            kategori: document.getElementById('modalItemKategori').value,
+            namaItem: document.getElementById('modalItemNama').value,
+            kuantiti: parseFloat(document.getElementById('modalItemKuantiti').value) || 0,
+            unit: document.getElementById('modalItemUnit').value,
+            anggaranKos: parseFloat(document.getElementById('modalItemAnggaran').value) || 0,
+            kosSebenar: parseFloat(document.getElementById('modalItemSebenar').value) || 0,
+            status: document.getElementById('modalItemStatus').value,
+            nota: document.getElementById('modalItemNota').value
+        };
+
+        let dataArray = type === 'belibelah' ? dataBelibelah : dataAcara;
+        const statusOptions = type === 'belibelah' ? belibelahStatusOptions : acaraStatusOptions;
+        const tableBodyId = type === 'belibelah' ? 'belibelahTableBody' : 'acaraTableBody';
+        const filterKategoriValue = type === 'belibelah' ? document.getElementById('filterKategoriBelibelah').value : document.getElementById('filterKategoriAcara').value;
+        const filterStatusValue = type === 'belibelah' ? document.getElementById('filterStatusBelibelah').value : document.getElementById('filterStatusAcara').value;
+        const filterDropdownId = type === 'belibelah' ? 'filterKategoriBelibelah' : 'filterKategoriAcara';
+
+
+        if (index === -1) {
+            itemData.id = generateUniqueId(type.substring(0,2));
+            dataArray.push(itemData);
+        } else {
+            itemData.id = dataArray[index].id;
+            dataArray[index] = itemData;
+        }
+
+        populateTable(type, tableBodyId, dataArray, statusOptions, filterKategoriValue, filterStatusValue);
+        const currentCategoryFilter = document.getElementById(filterDropdownId);
+        const currentCategoryValue = currentCategoryFilter.value;
+        populateFilterDropdown(filterDropdownId, dataArray, 'kategori');
+        currentCategoryFilter.value = currentCategoryValue;
+
+        updateAggregates();
+        renderCharts();
+        closeItemModal();
+    }
+
+    function showConfirmModal(message, onConfirmCallback) {
+        document.getElementById('confirmMessage').textContent = message;
+        document.getElementById('confirmModal').classList.add('active');
+
+        const confirmYes = document.getElementById('confirmYes');
+        const confirmNo = document.getElementById('confirmNo');
+
+        const handleConfirm = () => {
+            onConfirmCallback();
+            document.getElementById('confirmModal').classList.remove('active');
+            confirmYes.removeEventListener('click', handleConfirm);
+            confirmNo.removeEventListener('click', handleCancel);
+        };
+
+        const handleCancel = () => {
+            document.getElementById('confirmModal').classList.remove('active');
+            confirmYes.removeEventListener('click', handleConfirm);
+            confirmNo.removeEventListener('click', handleCancel);
+        };
+
+        confirmYes.addEventListener('click', handleConfirm);
+        confirmNo.addEventListener('click', handleCancel);
+    }
+
+    function deleteItemConfirmed(type, index) {
+        const modal = document.getElementById('itemModal');
+        if (modal.classList.contains('active')) {
+            closeItemModal();
+        }
+        let dataArray = type === 'belibelah' ? dataBelibelah : dataAcara;
+        const statusOptions = type === 'belibelah' ? belibelahStatusOptions : acaraStatusOptions;
+        const tableBodyId = type === 'belibelah' ? 'belibelahTableBody' : 'acaraTableBody';
+        const filterKategoriValue = type === 'belibelah' ? document.getElementById('filterKategoriBelibelah').value : document.getElementById('filterKategoriAcara').value;
+        const filterStatusValue = type === 'belibelah' ? document.getElementById('filterStatusBelibelah').value : document.getElementById('filterStatusAcara').value;
+
+        dataArray.splice(index, 1);
+        populateTable(type, tableBodyId, dataArray, statusOptions, filterKategoriValue, filterStatusValue);
+        updateAggregates();
+        renderCharts();
+    }
+
+    function sortTable(dataType, column) {
+        const currentColumn = currentSort[dataType].column;
+        const currentDirection = currentSort[dataType].direction;
+
+        if (currentColumn === column) {
+            currentSort[dataType].direction = currentDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort[dataType].column = column;
+            currentSort[dataType].direction = 'asc';
+        }
+
+        const tableBodyId = dataType === 'belibelah' ? 'belibelahTableBody' : 'acaraTableBody';
+        const dataArray = dataType === 'belibelah' ? dataBelibelah : dataAcara;
+        const statusOptions = dataType === 'belibelah' ? belibelahStatusOptions : acaraStatusOptions;
+        const filterKategoriValue = dataType === 'belibelah' ? document.getElementById('filterKategoriBelibelah').value : document.getElementById('filterKategoriAcara').value;
+        const filterStatusValue = dataType === 'belibelah' ? document.getElementById('filterStatusBelibelah').value : document.getElementById('filterStatusAcara').value;
+
+        populateTable(dataType, tableBodyId, dataArray, statusOptions, filterKategoriValue, filterStatusValue);
+    }
+
+    function updateSortIndicators(dataType) {
+        const tableElement = document.querySelector(`#${dataType}TableBody`).closest('table');
+        if (!tableElement) return;
+
+        const headers = tableElement.querySelectorAll('th');
+        headers.forEach(header => {
+            const span = header.querySelector('span');
+            if (span) {
+                span.textContent = '';
+            }
+        });
+
+        const sortColumn = currentSort[dataType].column;
+        const sortDirection = currentSort[dataType].direction;
+
+        if (sortColumn) {
+            const sortSpanId = `sort${sortColumn.charAt(0).toUpperCase() + sortColumn.slice(1)}${dataType.charAt(0).toUpperCase() + dataType.slice(1)}`;
+            const sortSpan = document.getElementById(sortSpanId);
+            if (sortSpan) {
+                sortSpan.textContent = sortDirection === 'asc' ? ' ▲' : ' ▼';
+            }
+        }
+    }
+
+
+    window.onload = () => {
+        document.querySelector('.tab-button.active').click();
+        populateTable('belibelah', 'belibelahTableBody', dataBelibelah, belibelahStatusOptions);
+        populateTable('acara', 'acaraTableBody', dataAcara, acaraStatusOptions);
+        populateFilterDropdown('filterKategoriBelibelah', dataBelibelah, 'kategori');
+        populateFilterDropdown('filterKategoriAcara', dataAcara, 'kategori');
+        updateAggregates();
+        renderCharts();
+    };
+</script>
+</body>
+</html>
